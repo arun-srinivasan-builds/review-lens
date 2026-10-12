@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
 import pytest
 from streamlit.testing.v1 import AppTest
 
+from reviewlens.aggregation import calculate_weekly_metrics
 from reviewlens.demo import load_demo_bundle, save_demo_bundle
+from reviewlens.report import format_report_text
 from tests.test_demo import _enriched, _report
 from ui.compliance import (
     ASSESSED_COMMIT,
@@ -82,7 +85,6 @@ def test_every_academy_checklist_item_is_present() -> None:
 def test_known_gaps_are_not_marked_completed() -> None:
     by_ref = {r.ref: r.status for r in all_requirements()}
     assert by_ref["C-3"] == "Pending"  # README screenshot
-    assert by_ref["C-4"] == "Pending"  # README sample output
     assert by_ref["1.6-2"] == "Pending"  # R-1042 urgency differs from the brief
     assert by_ref["1.6-4"] == "Pending"  # per-complaint counts not produced
     assert by_ref["X-1"] == "Pending" and by_ref["X-3"] == "Pending"  # unimplemented stretch goals
@@ -136,6 +138,35 @@ def test_readme_gaps_reported_in_the_table_are_real() -> None:
     assert (status["C-3"] == "Completed") == has_screenshot
 
 
+def test_readme_sample_output_matches_the_analysed_bundle() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert "### Sample input and output" in readme
+    df, report = load_demo_bundle(ROOT / "demo_data")
+    assert report is not None
+
+    # Output A: the three README records equal the bundle rows, field for field
+    block = readme.split("**Output A", 1)[1].split("```json", 1)[1].split("```", 1)[0]
+    records = json.loads(block)
+    assert len(records) == 3
+    keys = ("review_id", "sentiment", "category", "urgency", "language", "summary", "suggested_reply")
+    for rec in records:
+        assert tuple(rec) == keys
+        row = df[df["review_id"] == rec["review_id"]].iloc[0]
+        assert all(rec[k] == row[k] for k in keys)
+
+    # Output B: figures and text equal what the bundle produces
+    expected = format_report_text(calculate_weekly_metrics(df), report).rstrip()
+    assert expected in readme
+    assert "WEEKLY FEEDBACK REPORT" in readme and "ACTION ITEMS" in readme
+
+
+def test_readme_sample_output_status_is_consistent() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    has_sample_output = "**Output A" in readme and "WEEKLY FEEDBACK REPORT" in readme
+    status = {r.ref: r.status for r in all_requirements()}
+    assert (status["C-4"] == "Completed") == has_sample_output
+
+
 # ---- rendering
 def test_demo_shows_compliance_tab_with_date_commit_and_snapshot_label(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -163,15 +194,14 @@ def test_main_view_is_grouped_and_shows_three_mandatory_cards(
     assert ">Completed<" in text and ">Pending<" in text and ">Not verified<" in text
     for value in (counts["Completed"], counts["Pending"], counts["Not Verified"]):
         assert 'rl-card-num' in text and f">{value}<" in text
-    # the four pending mandatory items stay individually visible in the main checklist
+    # every pending mandatory item stays individually visible in the main checklist
     for name in (
         "Sample output match: review R-1042 rated high urgency",
         "Sample output detail: per-complaint review counts",
         "README screenshot",
-        "README sample input with its output",
     ):
         assert name in text
-    assert text.count("Pending</span>") >= 4
+    assert text.count("Pending</span>") >= counts["Pending"]
 
 
 def test_details_and_extras_live_in_expanders(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -239,7 +269,7 @@ def test_grouping_does_not_change_any_status() -> None:
     shown = {item.ref: item.status for rows in grouped_mandatory().values() for _, item in rows}
     assert shown == {ref: by_ref[ref] for ref in shown}
     pending = sorted(ref for ref, st in shown.items() if st == "Pending")
-    assert pending == ["1.6-2", "1.6-4", "C-3", "C-4"]  # exactly the four known pending mandatory items
+    assert pending == ["1.6-2", "1.6-4", "C-3"]  # exactly the known pending mandatory items
 
 
 def test_concise_names_are_short_and_unique() -> None:

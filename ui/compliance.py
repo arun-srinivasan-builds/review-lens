@@ -326,8 +326,10 @@ SECTIONS: tuple[Section, ...] = (
             Requirement(
                 "C-4",
                 "README includes one sample input with its output",
-                "Sample input is shown; the matching sample output is not yet included",
-                "Pending",
+                "README 'Sample input and output' shows three input rows, their Output A records and the "
+                "full Output B report, generated from the analysed demo bundle",
+                "Completed",
+                ("README.md", "demo_data/enriched.csv", "demo_data/report.json"),
             ),
             Requirement(
                 "C-5",
@@ -443,7 +445,7 @@ SECTIONS: tuple[Section, ...] = (
 )
 
 ENGINEERING_CHECKS: tuple[tuple[str, str, str], ...] = (
-    ("Test suite", "Full automated test suite", "199 passed"),
+    ("Test suite", "Full automated test suite", "201 passed"),
     ("Reliability", "Invalid-LLM retry tests", "22 passed"),
     ("Reliability", "Retry limit and failed-review isolation", "Passed"),
     ("Accuracy", "Metrics recomputed independently", "Passed"),

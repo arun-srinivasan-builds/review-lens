@@ -112,7 +112,7 @@ connections blocked:
 
 | Check | Result |
 |---|---|
-| Full automated test suite | **185 passed** |
+| Full automated test suite | **201 passed** |
 | Invalid-LLM retry tests | **22 passed** |
 | Ruff static checks | Passed |
 | Real OpenAI calls during tests | **0** |
@@ -120,8 +120,10 @@ connections blocked:
 
 The retry suite covers an invalid category, sentiment or urgency followed by a valid response, persistent
 invalid data stopping at the configured limit (`needs_review`), temporary errors bounded by the configured
-policy, and a single failing review being isolated and excluded from aggregation. The public demo has a
-**Quality & Validation** tab showing this snapshot; it is a recorded result, not live monitoring.
+policy, and a single failing review being isolated and excluded from aggregation. The public demo's
+**Assignment Compliance** tab maps the academy brief to evidence (mandatory items, stretch goals, submission
+steps) and lists these engineering results under *Additional Engineering Validation*. It is a recorded
+snapshot, not live monitoring.
 
 ```bash
 pip install -r requirements-dev.txt
@@ -162,6 +164,83 @@ R-1043,2026-10-04,Google,2,"Saapadu nalla irundhuchu but bill la extra charge po
 
 Dates are `YYYY-MM-DD`, ratings 1–5. Rows with empty text are dropped and counted; rows with invalid dates,
 IDs or ratings are rejected with a reason and a CSV line number.
+
+### Sample input and output
+
+Three reviews from `sample_data/reviews_200plus.csv` (English, Tamil and Tanglish):
+
+```csv
+review_id,date,platform,rating,review_text
+RV-2012,2026-10-10,Swiggy,1,My child fell sick with stomach infection after this meal. Food was spoiled and smelled bad.
+RV-2005,2026-10-10,Zomato,5,"சாப்பாடு மிகவும் சுவையாக இருந்தது, பிரியாணி அருமை."
+RV-2007,2026-10-09,Zomato,5,"Combo offer worth ah irukku, price reasonable."
+```
+
+**Output A: one analysed record per review** (from `demo_data/enriched.csv`). The Tamil review gets an English
+summary and a Tamil reply; the Tanglish review gets a Tanglish reply:
+
+```json
+[
+  {
+    "review_id": "RV-2012",
+    "sentiment": "negative",
+    "category": "food_quality",
+    "urgency": "high",
+    "language": "English",
+    "summary": "The reviewer says the food smelled bad and seemed spoiled, and their child developed a stomach infection after the meal.",
+    "suggested_reply": "We’re very sorry to hear this and hope your child is feeling better. Please contact us with more details so we can look into your food safety concern."
+  },
+  {
+    "review_id": "RV-2005",
+    "sentiment": "positive",
+    "category": "food_quality",
+    "urgency": "low",
+    "language": "Tamil",
+    "summary": "The food was very tasty, and the biryani was excellent.",
+    "suggested_reply": "சாப்பாடு மிகவும் சுவையாக இருந்தது என்றும் பிரியாணி அருமையாக இருந்தது என்றும் தெரிவித்ததற்கு நன்றி!"
+  },
+  {
+    "review_id": "RV-2007",
+    "sentiment": "positive",
+    "category": "price",
+    "urgency": "low",
+    "language": "Tanglish",
+    "summary": "The customer feels the combo offer is worthwhile and reasonably priced.",
+    "suggested_reply": "Combo offer worth-a irukku, price reasonable-a irukku nu sonnadukku nandri!"
+  }
+]
+```
+
+**Output B: weekly insights report** for the full 206-review week (from `demo_data/report.json`; every number
+is calculated in pandas):
+
+```text
+WEEKLY FEEDBACK REPORT | 2026-10-05 to 2026-10-11
+Total analysed reviews: 206
+Positive: 39.8% | Neutral: 3.9% | Negative: 56.3%
+
+TOP 3 COMPLAINTS
+1. Food safety concerns are the most serious: customers describe spoiled or stale food, food poisoning symptoms, and a cockroach in a meal.
+2. Order accuracy creates safety risks: customers report receiving non-vegetarian food instead of vegetarian orders and a dessert containing an allergen.
+3. Payment and refund problems frustrate customers: payments were deducted despite failed transactions, and some refunds remain outstanding.
+
+TOP PRAISE
+- Customers praise tasty, fresh food, especially the biryani.
+- Customers appreciate fast, on-time delivery and polite delivery partners.
+- Positive feedback also highlights friendly, attentive staff and an easy-to-use app with reliable tracking.
+
+URGENT
+23 reviews require attention
+Urgently investigate food safety reports and strengthen checks to prevent contaminated food and orders containing the wrong meal or allergens from reaching customers.
+
+ACTION ITEMS
+1. Inspect food handling, storage, and preparation practices, and investigate the reported illness and contamination concerns.
+2. Add a final order check for vegetarian requests and allergy notes before dispatch, confirming the meal and its ingredients match the order.
+3. Reconcile failed-payment deductions and overdue refunds, then resolve affected customer cases and improve payment and refund follow-up.
+```
+
+ReviewLens does not invent issue-level review counts: complaint themes are written by the model from the
+analysed reviews, while all totals, percentages and urgent counts come from pandas.
 
 ### Configuration
 
