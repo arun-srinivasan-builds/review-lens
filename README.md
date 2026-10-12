@@ -22,6 +22,10 @@ The public demo shows a pre-analysed week of 206 synthetic reviews: dashboard, c
 praise, action items, a filterable review table and a recorded **Quality & Validation** snapshot. Nothing you
 do there is sent to OpenAI. The private site needs a password because it accepts uploads and calls OpenAI.
 
+![ReviewLens public demo: Overview tab with KPI cards, sentiment, category and urgency charts, and the urgent-reviews panel](docs/screenshot.png)
+
+*The public demo's Overview tab: 206 pre-analysed synthetic reviews.*
+
 ## What it does
 
 1. **Upload and validate** a CSV (`review_id, date, platform, rating, review_text`). Size, row, header,
@@ -112,7 +116,7 @@ connections blocked:
 
 | Check | Result |
 |---|---|
-| Full automated test suite | **206 passed** |
+| Full automated test suite | **207 passed** |
 | Invalid-LLM retry tests | **22 passed** |
 | Ruff static checks | Passed |
 | Real OpenAI calls during tests | **0** |

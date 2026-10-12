@@ -84,7 +84,6 @@ def test_every_academy_checklist_item_is_present() -> None:
 
 def test_known_gaps_are_not_marked_completed() -> None:
     by_ref = {r.ref: r.status for r in all_requirements()}
-    assert by_ref["C-3"] == "Pending"  # README screenshot
     assert by_ref["1.6-2"] == "Pending"  # R-1042 urgency differs from the brief
     assert by_ref["1.6-4"] == "Pending"  # per-complaint counts not produced
     assert by_ref["X-1"] == "Pending" and by_ref["X-3"] == "Pending"  # unimplemented stretch goals
@@ -132,7 +131,8 @@ def test_demo_bundle_claims_hold() -> None:
 
 def test_readme_gaps_reported_in_the_table_are_real() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    has_screenshot = bool(re.search(r"!\[[^\]]*\]\([^)]+\)", readme))
+    match = re.search(r"!\[[^\]]*\]\(([^)]+)\)", readme)
+    has_screenshot = bool(match) and (ROOT / match.group(1)).is_file()
     status = {r.ref: r.status for r in all_requirements()}
     # the table must say Completed only if the README really has a screenshot, and vice versa
     assert (status["C-3"] == "Completed") == has_screenshot
@@ -198,7 +198,6 @@ def test_main_view_is_grouped_and_shows_three_mandatory_cards(
     for name in (
         "Sample output match: review R-1042 rated high urgency",
         "Sample output detail: per-complaint review counts",
-        "README screenshot",
     ):
         assert name in text
     assert text.count("Pending</span>") >= counts["Pending"]
@@ -269,10 +268,21 @@ def test_grouping_does_not_change_any_status() -> None:
     shown = {item.ref: item.status for rows in grouped_mandatory().values() for _, item in rows}
     assert shown == {ref: by_ref[ref] for ref in shown}
     pending = sorted(ref for ref, st in shown.items() if st == "Pending")
-    assert pending == ["1.6-2", "1.6-4", "C-3"]  # exactly the known pending mandatory items
+    assert pending == ["1.6-2", "1.6-4"]  # exactly the known pending mandatory items
 
 
 def test_concise_names_are_short_and_unique() -> None:
     names = [short for _, short in PRESENTATION.values()]
     assert len(names) == len(set(names))
     assert all(0 < len(n) <= 75 for n in names)
+
+
+def test_readme_screenshot_is_a_real_png_of_the_dashboard() -> None:
+    path = ROOT / "docs" / "screenshot.png"
+    data = path.read_bytes()
+    assert data[:8] == bytes([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])  # genuine PNG signature
+    width = int.from_bytes(data[16:20], "big")
+    height = int.from_bytes(data[20:24], "big")
+    assert width >= 600 and height >= 400
+    assert 20_000 < len(data) < 2_000_000  # large enough to be a screenshot, small enough for a README
+    assert "docs/screenshot.png" in (ROOT / "README.md").read_text(encoding="utf-8")

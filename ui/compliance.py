@@ -320,8 +320,9 @@ SECTIONS: tuple[Section, ...] = (
             Requirement(
                 "C-3",
                 "README includes a screenshot",
-                "The README currently contains no screenshot",
-                "Pending",
+                "README shows a screenshot of the public demo dashboard (docs/screenshot.png)",
+                "Completed",
+                ("README.md", "docs/screenshot.png"),
             ),
             Requirement(
                 "C-4",
@@ -445,7 +446,7 @@ SECTIONS: tuple[Section, ...] = (
 )
 
 ENGINEERING_CHECKS: tuple[tuple[str, str, str], ...] = (
-    ("Test suite", "Full automated test suite", "206 passed"),
+    ("Test suite", "Full automated test suite", "207 passed"),
     ("Reliability", "Invalid-LLM retry tests", "22 passed"),
     ("Reliability", "Retry limit and failed-review isolation", "Passed"),
     ("Accuracy", "Metrics recomputed independently", "Passed"),
