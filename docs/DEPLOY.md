@@ -12,7 +12,7 @@ capabilities dropped, and are reachable only on the internal Docker network.
 
 ## 0. One-time, on your own machine
 
-1. Build the demo bundle once (spends ~207 OpenAI calls; needs `.env` with key and model):
+1. Build the demo bundle once (about 207 OpenAI calls; needs `.env` with key and model):
 
    ```bash
    .venv\Scripts\python -m scripts.build_demo
@@ -85,9 +85,8 @@ docker compose logs -f caddy   # watch certificates being issued
 | Change admin password | new hash into `caddy.env`, then `docker compose up -d caddy` |
 | Stop everything | `docker compose down` |
 
-## Cost and safety notes
+## Safety notes
 
-- Set a monthly spend limit on the OpenAI project that owns the key.
-- The live site is the only place that can spend quota. It is behind the password and a 12 MB request cap.
+- Only the live site can call OpenAI. It is behind the password and a 12 MB request cap.
 - Uploads are processed in memory only; nothing is stored on the VPS. Review text is sent to OpenAI.
 - Logs contain counts and exception names only, never review text or keys.
