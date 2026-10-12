@@ -10,7 +10,7 @@ import streamlit as st
 from ui.theme import section_label
 
 RECORDED_ON = "12 Oct 2026"
-RECORDED_COMMIT = "c924068"
+RECORDED_COMMIT = "73f6204"
 
 
 @dataclass(frozen=True)
