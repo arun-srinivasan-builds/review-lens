@@ -116,7 +116,7 @@ connections blocked:
 
 | Check | Result |
 |---|---|
-| Full automated test suite | **207 passed** |
+| Full automated test suite | **219 passed** |
 | Invalid-LLM retry tests | **22 passed** |
 | Ruff static checks | Passed |
 | Real OpenAI calls during tests | **0** |
@@ -216,7 +216,7 @@ summary and a Tamil reply; the Tanglish review gets a Tanglish reply:
 ```
 
 **Output B: weekly insights report** for the full 206-review week (from `demo_data/report.json`; every number
-is calculated in pandas):
+is calculated in pandas, including the complaint breakdown):
 
 ```text
 WEEKLY FEEDBACK REPORT | 2026-10-05 to 2026-10-11
@@ -227,6 +227,11 @@ TOP 3 COMPLAINTS
 1. Food safety concerns are the most serious: customers describe spoiled or stale food, food poisoning symptoms, and a cockroach in a meal.
 2. Order accuracy creates safety risks: customers report receiving non-vegetarian food instead of vegetarian orders and a dessert containing an allergen.
 3. Payment and refund problems frustrate customers: payments were deducted despite failed transactions, and some refunds remain outstanding.
+
+COMPLAINT BREAKDOWN (calculated from analysed reviews)
+1. App: 24 negative reviews (20.7% of negative), most from Swiggy (9), 7 high urgency
+2. Price: 22 negative reviews (19.0% of negative), most from Google (7), 3 high urgency
+3. Delivery: 21 negative reviews (18.1% of negative), most from Amazon (8), 3 high urgency
 
 TOP PRAISE
 - Customers praise tasty, fresh food, especially the biryani.
@@ -243,8 +248,9 @@ ACTION ITEMS
 3. Reconcile failed-payment deductions and overdue refunds, then resolve affected customer cases and improve payment and refund follow-up.
 ```
 
-ReviewLens does not invent issue-level review counts: complaint themes are written by the model from the
-analysed reviews, while all totals, percentages and urgent counts come from pandas.
+The complaint breakdown, totals, percentages and urgent counts are calculated in pandas per complaint
+category, including the most-affected platform. The complaint themes themselves are written by the model
+from the analysed reviews. The CSV has no time of day, so no time-slot pattern is reported.
 
 ### Configuration
 

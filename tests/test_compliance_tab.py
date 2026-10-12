@@ -9,7 +9,10 @@ from pathlib import Path
 import pytest
 from streamlit.testing.v1 import AppTest
 
-from reviewlens.aggregation import calculate_weekly_metrics
+from reviewlens.aggregation import (
+    calculate_complaint_breakdown,
+    calculate_weekly_metrics,
+)
 from reviewlens.demo import load_demo_bundle, save_demo_bundle
 from reviewlens.report import format_report_text
 from tests.test_demo import _enriched, _report
@@ -19,11 +22,13 @@ from ui.compliance import (
     ENGINEERING_CHECKS,
     GROUPS,
     PRESENTATION,
+    REASONS,
     SECTIONS,
     STATUS_LABEL,
     all_requirements,
     grouped_mandatory,
     mandatory_items,
+    reason_for,
     status_counts,
 )
 
@@ -85,7 +90,8 @@ def test_every_academy_checklist_item_is_present() -> None:
 def test_known_gaps_are_not_marked_completed() -> None:
     by_ref = {r.ref: r.status for r in all_requirements()}
     assert by_ref["1.6-2"] == "Pending"  # R-1042 urgency differs from the brief
-    assert by_ref["1.6-4"] == "Pending"  # per-complaint counts not produced
+    assert by_ref["1.6-4"] == "Completed"  # counts and platform are calculated in pandas
+    assert by_ref["1.6-5"] == "Pending"  # the CSV has no time of day
     assert by_ref["X-1"] == "Pending" and by_ref["X-3"] == "Pending"  # unimplemented stretch goals
     assert by_ref["S-2"] == "Not Verified" and by_ref["S-3"] == "Not Verified"  # owner actions
 
@@ -155,7 +161,9 @@ def test_readme_sample_output_matches_the_analysed_bundle() -> None:
         assert all(rec[k] == row[k] for k in keys)
 
     # Output B: figures and text equal what the bundle produces
-    expected = format_report_text(calculate_weekly_metrics(df), report).rstrip()
+    expected = format_report_text(
+        calculate_weekly_metrics(df), report, calculate_complaint_breakdown(df, top_n=3)
+    ).rstrip()
     assert expected in readme
     assert "WEEKLY FEEDBACK REPORT" in readme and "ACTION ITEMS" in readme
 
@@ -197,7 +205,7 @@ def test_main_view_is_grouped_and_shows_three_mandatory_cards(
     # every pending mandatory item stays individually visible in the main checklist
     for name in (
         "Sample output match: review R-1042 rated high urgency",
-        "Sample output detail: per-complaint review counts",
+        "Sample output detail: time-slot hint (e.g. 8pm to 10pm)",
     ):
         assert name in text
     assert text.count("Pending</span>") >= counts["Pending"]
@@ -268,7 +276,7 @@ def test_grouping_does_not_change_any_status() -> None:
     shown = {item.ref: item.status for rows in grouped_mandatory().values() for _, item in rows}
     assert shown == {ref: by_ref[ref] for ref in shown}
     pending = sorted(ref for ref, st in shown.items() if st == "Pending")
-    assert pending == ["1.6-2", "1.6-4"]  # exactly the known pending mandatory items
+    assert pending == ["1.6-2", "1.6-5"]  # exactly the known pending mandatory items
 
 
 def test_concise_names_are_short_and_unique() -> None:
@@ -286,3 +294,41 @@ def test_readme_screenshot_is_a_real_png_of_the_dashboard() -> None:
     assert width >= 600 and height >= 400
     assert 20_000 < len(data) < 2_000_000  # large enough to be a screenshot, small enough for a README
     assert "docs/screenshot.png" in (ROOT / "README.md").read_text(encoding="utf-8")
+
+
+# ---- Reason column: pending items are explained, completed items show an em dash
+def test_every_non_completed_requirement_has_a_reason() -> None:
+    missing = [r.ref for r in all_requirements() if r.status != "Completed" and not reason_for(r).strip()]
+    assert missing == []
+
+
+def test_completed_requirements_show_an_em_dash_reason() -> None:
+    completed = [r for r in all_requirements() if r.status == "Completed"]
+    assert completed and all(reason_for(r) == "\u2014" for r in completed)
+    assert not any(ref in REASONS for ref in (r.ref for r in completed))  # no stale reasons kept
+
+
+def test_r1042_reason_is_the_agreed_wording() -> None:
+    assert REASONS["1.6-2"] == (
+        "The AI classified the late and cold delivery as medium urgency. The academy's illustrative "
+        "sample labels it high. Classification was not overridden solely to match the sample."
+    )
+
+
+def test_time_slot_reason_states_the_csv_has_no_times() -> None:
+    reason = REASONS["1.6-5"].lower()
+    assert "no order or delivery time" in reason
+    assert "not invented" in reason
+
+
+def test_reason_column_is_shown_in_verification_details(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    at = _demo_app(tmp_path, monkeypatch)
+    details = next(e for e in at.expander if e.label == "Verification Details")
+    frames = [t.value for t in details.table]
+    assert frames and all("Reason" in f.columns and "Evidence" in f.columns for f in frames)
+    weekly = next(f for f in frames if "1.6-2" in f.index)
+    assert "medium urgency" in weekly.loc["1.6-2", "Reason"]
+    completed_rows = weekly[weekly["Status"].str.contains("Completed")]
+    assert (completed_rows["Reason"] == "\u2014").all()

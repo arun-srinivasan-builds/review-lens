@@ -6,7 +6,13 @@ import datetime as dt
 
 import pandas as pd
 
-from reviewlens.models import CATEGORIES, SENTIMENTS, URGENCIES, WeeklyMetrics
+from reviewlens.models import (
+    CATEGORIES,
+    SENTIMENTS,
+    URGENCIES,
+    ComplaintBreakdown,
+    WeeklyMetrics,
+)
 
 
 def _counts(series: pd.Series, allowed: tuple[str, ...]) -> dict[str, int]:
@@ -55,3 +61,39 @@ def calculate_weekly_metrics(enriched_df: pd.DataFrame) -> WeeklyMetrics:
         urgency_counts=urgency_counts,
         high_urgency_count=urgency_counts["high"],
     )
+
+
+def calculate_complaint_breakdown(
+    enriched_df: pd.DataFrame, top_n: int | None = None
+) -> list[ComplaintBreakdown]:
+    """Negative reviews per category with the most-affected platform (pandas only).
+
+    Counts are category-level, not free-text themes. Only completed, negative reviews are used, so
+    needs_review rows never contribute. Ordered by count, then category name, for stable output.
+    """
+    required = {"processing_status", "sentiment", "category", "platform", "urgency"}
+    if enriched_df.empty or not required <= set(enriched_df.columns):
+        return []
+    negative = enriched_df[
+        (enriched_df["processing_status"] == "completed") & (enriched_df["sentiment"] == "negative")
+    ]
+    if negative.empty:
+        return []
+
+    total = len(negative)
+    rows: list[ComplaintBreakdown] = []
+    for category, group in negative.groupby("category", sort=True):
+        platforms = group["platform"].value_counts()
+        top_platform, top_count = min(platforms.items(), key=lambda kv: (-int(kv[1]), str(kv[0])))
+        rows.append(
+            ComplaintBreakdown(
+                category=str(category),
+                negative_reviews=len(group),
+                share_of_negative_pct=round(len(group) / total * 100, 1),
+                top_platform=str(top_platform),
+                top_platform_reviews=int(top_count),
+                high_urgency_reviews=int((group["urgency"] == "high").sum()),
+            )
+        )
+    rows.sort(key=lambda r: (-r.negative_reviews, r.category))
+    return rows[:top_n] if top_n else rows

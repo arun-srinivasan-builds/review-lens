@@ -13,7 +13,7 @@ from langchain_core.runnables import Runnable
 from reviewlens.classification import is_fatal_error
 from reviewlens.config import Settings, load_settings
 from reviewlens.logging_utils import get_logger
-from reviewlens.models import WeeklyMetrics, WeeklyReport
+from reviewlens.models import ComplaintBreakdown, WeeklyMetrics, WeeklyReport
 from reviewlens.security import one_line, safe_error_message
 
 logger = get_logger(__name__)
@@ -205,8 +205,21 @@ def generate_weekly_report(
     raise ReportGenerationError(f"Weekly report generation failed: {detail}") from last_exc
 
 
-def format_report_text(metrics: WeeklyMetrics, report: WeeklyReport) -> str:
-    """Render the plain-text weekly report; every number comes from `metrics`."""
+def format_breakdown_line(rank: int, item: ComplaintBreakdown) -> str:
+    label = item.category.replace("_", " ").capitalize()
+    return (
+        f"{rank}. {label}: {item.negative_reviews} negative reviews "
+        f"({item.share_of_negative_pct}% of negative), most from {item.top_platform} "
+        f"({item.top_platform_reviews}), {item.high_urgency_reviews} high urgency"
+    )
+
+
+def format_report_text(
+    metrics: WeeklyMetrics,
+    report: WeeklyReport,
+    breakdown: list[ComplaintBreakdown] | None = None,
+) -> str:
+    """Render the plain-text weekly report; every number comes from `metrics` and `breakdown`."""
     pct = metrics.sentiment_percentages
     lines = [
         f"WEEKLY FEEDBACK REPORT | {metrics.period_start.isoformat()} to {metrics.period_end.isoformat()}",
@@ -219,6 +232,9 @@ def format_report_text(metrics: WeeklyMetrics, report: WeeklyReport) -> str:
         "TOP 3 COMPLAINTS",
     ]
     lines += [f"{i}. {item}" for i, item in enumerate(report.top_3_complaints, start=1)]
+    if breakdown:
+        lines += ["", "COMPLAINT BREAKDOWN (calculated from analysed reviews)"]
+        lines += [format_breakdown_line(i, item) for i, item in enumerate(breakdown[:3], start=1)]
     lines += ["", "TOP PRAISE"]
     lines += [f"- {item}" for item in report.top_praises]
     lines += [

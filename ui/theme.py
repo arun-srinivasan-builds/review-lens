@@ -46,6 +46,7 @@ _CSS = """
   .rl-check td { padding: 0.5rem 0.4rem; border-bottom: 1px solid #F1F5F9; vertical-align: middle; }
   .rl-check tr:last-child td { border-bottom: none; }
   .rl-check .rl-status-cell { width: 11rem; white-space: nowrap; }
+  .rl-reason { font-size: 0.78rem; color: #64748B; margin-top: 0.2rem; line-height: 1.35; }
   .rl-st { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; font-weight: 600; }
   .rl-dot { display: inline-block; width: 1.15rem; height: 1.15rem; line-height: 1.15rem; text-align: center; border-radius: 999px; font-size: 0.7rem; }
   .rl-ok { color: #15803D; }

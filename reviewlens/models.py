@@ -139,6 +139,17 @@ class WeeklyMetrics(BaseModel):
     high_urgency_count: int
 
 
+class ComplaintBreakdown(BaseModel):
+    """Calculated (pandas) view of negative reviews for one category. Never written by the LLM."""
+
+    category: str
+    negative_reviews: int
+    share_of_negative_pct: float
+    top_platform: str
+    top_platform_reviews: int
+    high_urgency_reviews: int
+
+
 class WeeklyReport(BaseModel):
     top_3_complaints: Annotated[list[str], AfterValidator(_at_most(3))]
     top_praises: list[str]

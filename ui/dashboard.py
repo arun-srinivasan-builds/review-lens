@@ -8,6 +8,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from reviewlens.aggregation import calculate_complaint_breakdown
 from reviewlens.export import export_enriched_csv
 from reviewlens.models import (
     CATEGORIES,
@@ -157,7 +158,36 @@ def _overview(enriched_df: pd.DataFrame, metrics: WeeklyMetrics) -> None:
     _urgent_panel(enriched_df)
 
 
-def _report_tab(metrics: WeeklyMetrics, report: WeeklyReport | None) -> None:
+def _breakdown_panel(enriched_df: pd.DataFrame) -> None:
+    rows = calculate_complaint_breakdown(enriched_df)
+    with st.container(border=True):
+        section_label("Complaint breakdown (calculated from negative reviews)")
+        if not rows:
+            st.caption("No negative reviews in this period.")
+            return
+        st.table(
+            pd.DataFrame(
+                [
+                    {
+                        "Category": _pretty(r.category),
+                        "Negative reviews": r.negative_reviews,
+                        "Share of negative": f"{r.share_of_negative_pct:.1f}%",
+                        "Most affected platform": f"{r.top_platform} ({r.top_platform_reviews})",
+                        "High urgency": r.high_urgency_reviews,
+                    }
+                    for r in rows
+                ]
+            ).set_index("Category")
+        )
+        st.caption(
+            "Counted in pandas per category from the analysed reviews. The AI narrative does not supply "
+            "these numbers. The CSV has no time of day, so no time-slot pattern is shown."
+        )
+
+
+def _report_tab(
+    metrics: WeeklyMetrics, report: WeeklyReport | None, enriched_df: pd.DataFrame
+) -> None:
     st.subheader("Weekly feedback report")
     pct = metrics.sentiment_percentages
     with st.container(border=True):
@@ -172,6 +202,7 @@ def _report_tab(metrics: WeeklyMetrics, report: WeeklyReport | None) -> None:
             delta_color="inverse",
         )
         d.metric("URGENT", f"{metrics.high_urgency_count} high-urgency review(s)")
+    _breakdown_panel(enriched_df)
     if report is None:
         st.info("The narrative report is unavailable. The verified metrics above are still correct.")
         return
@@ -195,7 +226,9 @@ def _report_tab(metrics: WeeklyMetrics, report: WeeklyReport | None) -> None:
             st.text(f"{i}. {item}")
     st.download_button(
         "Download report (.txt)",
-        data=format_report_text(metrics, report).encode("utf-8"),
+        data=format_report_text(
+            metrics, report, calculate_complaint_breakdown(enriched_df, top_n=3)
+        ).encode("utf-8"),
         file_name="reviewlens_weekly_report.txt",
         mime="text/plain",
         on_click="ignore",
@@ -309,7 +342,7 @@ def render_dashboard(
     with tabs[0]:
         _overview(enriched_df, metrics)
     with tabs[1]:
-        _report_tab(metrics, report)
+        _report_tab(metrics, report, enriched_df)
     with tabs[2]:
         _reviews_tab(enriched_df)
     if show_compliance:

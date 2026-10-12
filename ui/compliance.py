@@ -229,9 +229,17 @@ SECTIONS: tuple[Section, ...] = (
             ),
             Requirement(
                 "1.6-4",
-                "Output B detail: per-complaint review counts and platform / time-slot hints",
-                "Not produced: ReviewLens never states issue-level counts it did not calculate; category "
-                "counts are shown in the chart instead",
+                "Output B detail: per-complaint review counts and platform hints",
+                "Weekly report tab and text report show, per complaint category, the negative review count, "
+                "its share of all negative reviews and the most-affected platform, all calculated in pandas "
+                "(category-level, not free-text themes)",
+                "Completed",
+                ("reviewlens/aggregation.py", "ui/dashboard.py", "tests/test_aggregation.py"),
+            ),
+            Requirement(
+                "1.6-5",
+                "Output B detail: time-slot hint (e.g. 'mostly 8pm to 10pm')",
+                "No time-slot is shown because none can be calculated from the data",
                 "Pending",
             ),
             Requirement(
@@ -446,7 +454,7 @@ SECTIONS: tuple[Section, ...] = (
 )
 
 ENGINEERING_CHECKS: tuple[tuple[str, str, str], ...] = (
-    ("Test suite", "Full automated test suite", "207 passed"),
+    ("Test suite", "Full automated test suite", "219 passed"),
     ("Reliability", "Invalid-LLM retry tests", "22 passed"),
     ("Reliability", "Retry limit and failed-review isolation", "Passed"),
     ("Accuracy", "Metrics recomputed independently", "Passed"),
@@ -515,7 +523,8 @@ PRESENTATION: dict[str, tuple[str, str]] = {
     "1.3-3": ("Weekly Insights", "Counts by sentiment, category and urgency (pandas)"),
     "1.4-4": ("Weekly Insights", "Map then reduce: per-review chain, then report chain"),
     "1.6-3": ("Weekly Insights", "Report content: totals, percentages, complaints, praise, actions"),
-    "1.6-4": ("Weekly Insights", "Sample output detail: per-complaint review counts"),
+    "1.6-4": ("Weekly Insights", "Sample output detail: per-complaint counts and platform"),
+    "1.6-5": ("Weekly Insights", "Sample output detail: time-slot hint (e.g. 8pm to 10pm)"),
     "1.8-4": ("Weekly Insights", "Report numbers match the table (calculated, not guessed)"),
     "1.2-5": ("Dashboard & Export", "Dashboard: sentiment split and category chart"),
     "1.2-6": ("Dashboard & Export", "Enriched table exported as CSV for Excel"),
@@ -530,6 +539,32 @@ PRESENTATION: dict[str, tuple[str, str]] = {
     "C-6": ("Documentation", "Tested with own data, not only the brief's sample"),
     "1.8-6": ("Documentation", "API key loaded from .env, never hard-coded"),
 }
+
+# Why an item is not Completed. Completed items show an em dash in the Reason column.
+REASONS: dict[str, str] = {
+    "1.6-2": (
+        "The AI classified the late and cold delivery as medium urgency. The academy's illustrative "
+        "sample labels it high. Classification was not overridden solely to match the sample."
+    ),
+    "1.6-5": (
+        "The source CSV has a date but no order or delivery time, so a time-of-day pattern cannot be "
+        "calculated and is not invented."
+    ),
+    "S-2": "Owner action. No evidence is available to this assessment.",
+    "S-3": "Owner action. No evidence is available to this assessment.",
+    "S-4": "Not tested with a person who has not seen the project.",
+    "X-1": "Not implemented. Optional stretch goal outside the Done checklist.",
+    "X-3": "Not implemented. Optional stretch goal outside the Done checklist.",
+}
+NO_REASON = "\u2014"
+
+
+def reason_for(item: Requirement) -> str:
+    """Em dash for Completed items; the stated reason for everything else."""
+    if item.status == "Completed":
+        return NO_REASON
+    return REASONS.get(item.ref, "")
+
 
 _STATUS_HTML: dict[str, str] = {
     "Completed": '<span class="rl-st rl-ok"><span class="rl-dot">✓</span>Completed</span>',
@@ -568,8 +603,14 @@ def _cards_html(counts: Counter[str]) -> str:
 
 
 def _checklist_html(rows: list[tuple[str, Requirement]]) -> str:
+    def cell(short: str, item: Requirement) -> str:
+        note = ""
+        if item.status != "Completed" and reason_for(item):
+            note = f'<div class="rl-reason">{escape_html(reason_for(item))}</div>'
+        return f"<td>{escape_html(short)}{note}</td>"
+
     body = "".join(
-        f"<tr><td>{escape_html(short)}</td><td class='rl-status-cell'>{_STATUS_HTML[item.status]}</td></tr>"
+        f"<tr>{cell(short, item)}<td class='rl-status-cell'>{_STATUS_HTML[item.status]}</td></tr>"
         for short, item in rows
     )
     return (
@@ -586,6 +627,7 @@ def _detail_frame(section: Section) -> pd.DataFrame:
                 "Requirement (brief wording)": item.text,
                 "Evidence": item.evidence,
                 "Status": STATUS_LABEL[item.status],
+                "Reason": reason_for(item),
             }
             for item in section.items
         ]
@@ -597,7 +639,12 @@ def _simple_table(section: Section) -> None:
     st.table(
         pd.DataFrame(
             [
-                {"Item": item.text, "Status": STATUS_LABEL[item.status], "Evidence": item.evidence}
+                {
+                    "Item": item.text,
+                    "Status": STATUS_LABEL[item.status],
+                    "Evidence": item.evidence,
+                    "Reason": reason_for(item),
+                }
                 for item in section.items
             ]
         ).set_index("Item")
