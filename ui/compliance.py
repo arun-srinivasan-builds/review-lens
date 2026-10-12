@@ -20,7 +20,7 @@ Status = Literal["Completed", "Pending", "Not Verified"]
 Kind = Literal["mandatory", "deliverable", "stretch", "optional"]
 
 ASSESSED_ON = "12 Oct 2026"
-ASSESSED_COMMIT = "7fe9b8a"
+ASSESSED_COMMIT = "45d000b"
 SOURCE = "Social Eagle AI Academy, Use Case Definitions: ReviewLens sections 1.1-1.8 and page 16"
 
 STATUS_LABEL: dict[str, str] = {
