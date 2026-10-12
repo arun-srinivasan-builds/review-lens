@@ -111,7 +111,7 @@ it (the production setup does this with a password on the live site).
 ## Quality and validation
 
 Latest recorded run, measured on the public tree at commit
-[`cdcd00d`](https://github.com/arun-srinivasan-builds/review-lens/commit/cdcd00d) with outbound network
+[`112c712`](https://github.com/arun-srinivasan-builds/review-lens/commit/112c712) with outbound network
 connections blocked:
 
 | Check | Result |
