@@ -14,7 +14,7 @@ from typing import Literal
 import pandas as pd
 import streamlit as st
 
-from ui.theme import section_label
+from ui.theme import escape_html, section_label
 
 Status = Literal["Completed", "Pending", "Not Verified"]
 Kind = Literal["mandatory", "deliverable", "stretch", "optional"]
@@ -443,7 +443,7 @@ SECTIONS: tuple[Section, ...] = (
 )
 
 ENGINEERING_CHECKS: tuple[tuple[str, str, str], ...] = (
-    ("Test suite", "Full automated test suite", "194 passed"),
+    ("Test suite", "Full automated test suite", "199 passed"),
     ("Reliability", "Invalid-LLM retry tests", "22 passed"),
     ("Reliability", "Retry limit and failed-review isolation", "Passed"),
     ("Accuracy", "Metrics recomputed independently", "Passed"),
@@ -480,30 +480,168 @@ def _frame(section: Section) -> pd.DataFrame:
     )
 
 
-def render_compliance_tab() -> None:
-    """Render the recorded assessment. Contains no configuration, logs or secrets."""
-    st.subheader("Assignment Compliance")
-    st.info(
-        f"Recorded assessment of {SOURCE}. Assessed on {ASSESSED_ON} at commit {ASSESSED_COMMIT}. "
-        "This is a snapshot, not live monitoring."
+# ---- presentation only: group and a concise name for every mandatory requirement -----------------
+GROUPS: tuple[str, ...] = (
+    "CSV Processing",
+    "AI Classification",
+    "Weekly Insights",
+    "Dashboard & Export",
+    "Documentation",
+)
+
+# ref -> (group, concise requirement name). Statuses and evidence come from SECTIONS, unchanged.
+PRESENTATION: dict[str, tuple[str, str]] = {
+    "1.2-1": ("CSV Processing", "CSV upload with the five required columns"),
+    "1.3-1": ("CSV Processing", "Validation: columns checked, empty rows dropped"),
+    "1.5-1": ("CSV Processing", "Sample CSV from the brief processes end to end"),
+    "1.8-1": ("CSV Processing", "200+ reviews processed without crashing or timing out"),
+    "1.2-2": ("AI Classification", "LangChain chain returns a fixed structure per review"),
+    "1.2-3": ("AI Classification", "Tamil and Tanglish understood, summarised in English"),
+    "1.3-2": ("AI Classification", "Reviews classified in batches"),
+    "1.3-4": ("AI Classification", "Invalid LLM value retried, then marked needs review"),
+    "1.4-1": ("AI Classification", "ChatPromptTemplate and LCEL chains"),
+    "1.4-2": ("AI Classification", "Pydantic structured output (with_structured_output)"),
+    "1.4-3": ("AI Classification", "chain.batch with max_concurrency"),
+    "1.4-5": ("AI Classification", "LLM provider: OpenAI (any one is allowed)"),
+    "1.6-1": ("AI Classification", "Per-review record has all required fields (Output A)"),
+    "1.6-2": ("AI Classification", "Sample output match: review R-1042 rated high urgency"),
+    "1.7-1": ("AI Classification", "Allowed sentiment, category and urgency values enforced"),
+    "1.8-2": ("AI Classification", "Every review has all 6 fields from the allowed lists"),
+    "1.8-3": ("AI Classification", "Correct English summary for Tamil and Tanglish"),
+    "1.2-4": ("Weekly Insights", "Weekly report from a second chain"),
+    "1.3-3": ("Weekly Insights", "Counts by sentiment, category and urgency (pandas)"),
+    "1.4-4": ("Weekly Insights", "Map then reduce: per-review chain, then report chain"),
+    "1.6-3": ("Weekly Insights", "Report content: totals, percentages, complaints, praise, actions"),
+    "1.6-4": ("Weekly Insights", "Sample output detail: per-complaint review counts"),
+    "1.8-4": ("Weekly Insights", "Report numbers match the table (calculated, not guessed)"),
+    "1.2-5": ("Dashboard & Export", "Dashboard: sentiment split and category chart"),
+    "1.2-6": ("Dashboard & Export", "Enriched table exported as CSV for Excel"),
+    "1.4-6": ("Dashboard & Export", "Streamlit, pandas and a chart library"),
+    "1.8-5": ("Dashboard & Export", "HIGH-urgency filter works; CSV opens correctly in Excel"),
+    "C-7": ("Dashboard & Export", "Demo shows the same kind of output as the brief"),
+    "C-1": ("Documentation", "Clean repository, requirements.txt, .env.example"),
+    "C-2": ("Documentation", "README: what it does and how to run it"),
+    "C-3": ("Documentation", "README screenshot"),
+    "C-4": ("Documentation", "README sample input with its output"),
+    "C-5": ("Documentation", "No secrets in code; .env is git-ignored"),
+    "C-6": ("Documentation", "Tested with own data, not only the brief's sample"),
+    "1.8-6": ("Documentation", "API key loaded from .env, never hard-coded"),
+}
+
+_STATUS_HTML: dict[str, str] = {
+    "Completed": '<span class="rl-st rl-ok"><span class="rl-dot">✓</span>Completed</span>',
+    "Pending": '<span class="rl-st rl-warn"><span class="rl-dot">●</span>Pending</span>',
+    "Not Verified": '<span class="rl-st rl-na"><span class="rl-dot">○</span>Not verified</span>',
+}
+
+
+def mandatory_items() -> list[Requirement]:
+    return [i for s in SECTIONS if s.kind == "mandatory" for i in s.items]
+
+
+def grouped_mandatory() -> dict[str, list[tuple[str, Requirement]]]:
+    """Group name -> [(concise name, requirement)] in checklist order."""
+    grouped: dict[str, list[tuple[str, Requirement]]] = {g: [] for g in GROUPS}
+    for item in mandatory_items():
+        group, short = PRESENTATION[item.ref]
+        grouped[group].append((short, item))
+    return grouped
+
+
+def _cards_html(counts: Counter[str]) -> str:
+    def card(label: str, value: int, css: str) -> str:
+        return (
+            f'<div class="rl-card"><div class="rl-card-label">{escape_html(label)}</div>'
+            f'<div class="rl-card-num {css}">{int(value)}</div></div>'
+        )
+
+    return (
+        '<div class="rl-cards">'
+        + card("Completed", counts["Completed"], "rl-ok")
+        + card("Pending", counts["Pending"], "rl-warn")
+        + card("Not verified", counts["Not Verified"], "rl-na")
+        + "</div>"
     )
+
+
+def _checklist_html(rows: list[tuple[str, Requirement]]) -> str:
+    body = "".join(
+        f"<tr><td>{escape_html(short)}</td><td class='rl-status-cell'>{_STATUS_HTML[item.status]}</td></tr>"
+        for short, item in rows
+    )
+    return (
+        '<table class="rl-check"><thead><tr><th>Requirement</th><th>Status</th></tr></thead>'
+        f"<tbody>{body}</tbody></table>"
+    )
+
+
+def _detail_frame(section: Section) -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {
+                "#": item.ref,
+                "Requirement (brief wording)": item.text,
+                "Evidence": item.evidence,
+                "Status": STATUS_LABEL[item.status],
+            }
+            for item in section.items
+        ]
+    )
+
+
+def _simple_table(section: Section) -> None:
+    st.caption(section.note)
+    st.table(
+        pd.DataFrame(
+            [
+                {"Item": item.text, "Status": STATUS_LABEL[item.status], "Evidence": item.evidence}
+                for item in section.items
+            ]
+        ).set_index("Item")
+    )
+
+
+def render_compliance_tab() -> None:
+    """Mentor-friendly summary first; evidence, source and extras sit in expanders below."""
+    st.subheader("Assignment Compliance")
+    st.caption("Social Eagle AI Academy | GenAI / LangChain | ReviewLens")
 
     mandatory = status_counts("mandatory")
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Assessment date", ASSESSED_ON, border=True)
-    c2.metric("Verified commit", ASSESSED_COMMIT, border=True)
-    c3.metric("Mandatory completed", f"{mandatory['Completed']} of {sum(mandatory.values())}", border=True)
-    c4.metric(
-        "Open mandatory items",
-        f"{mandatory['Pending']} pending, {mandatory['Not Verified']} not verified",
-        border=True,
+    st.markdown(_cards_html(mandatory), unsafe_allow_html=True)
+    st.caption(
+        f"Mandatory requirements only ({sum(mandatory.values())} items). "
+        f"Recorded snapshot, assessed {ASSESSED_ON} at commit {ASSESSED_COMMIT}; not live monitoring."
     )
 
-    for section in SECTIONS:
+    for group, rows in grouped_mandatory().items():
+        done = sum(1 for _, item in rows if item.status == "Completed")
         with st.container(border=True):
-            section_label(f"{section.title}  ·  {section.kind}")
-            st.caption(section.note)
-            st.table(_frame(section).set_index("#"))
+            section_label(f"{group}  ·  {done} of {len(rows)} completed")
+            st.markdown(_checklist_html(rows), unsafe_allow_html=True)
+
+    with st.expander("Verification Details"):
+        st.markdown(f"**Source:** {SOURCE}.")
+        st.markdown(f"**Assessed:** {ASSESSED_ON}  ·  **Verified commit:** `{ASSESSED_COMMIT}`")
+        st.caption(
+            "Requirement numbers follow the academy's section numbers (1.2 to 1.8) and page 16 "
+            "(C = common expectations). Evidence was checked against the source code, tests, the analysed "
+            "demo data and the live deployment."
+        )
+        for section in SECTIONS:
+            if section.kind == "mandatory":
+                section_label(section.title)
+                st.table(_detail_frame(section).set_index("#"))
+
+    for section in SECTIONS:
+        if section.kind == "stretch":
+            with st.expander("Stretch goals (optional in the brief)"):
+                _simple_table(section)
+        elif section.kind == "optional":
+            with st.expander("Deployment enhancements (beyond the brief)"):
+                _simple_table(section)
+        elif section.kind == "deliverable":
+            with st.expander("Submission steps"):
+                _simple_table(section)
 
     with st.expander("Additional Engineering Validation"):
         st.caption(

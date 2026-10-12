@@ -34,6 +34,30 @@ _CSS = """
   [data-testid="stTable"] table { font-size: 0.86rem; }
   [data-testid="stTable"] td, [data-testid="stTable"] th { vertical-align: top; }
 
+
+  /* assignment compliance */
+  .rl-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.9rem; margin: 0.4rem 0 0.35rem 0; }
+  .rl-card { border: 1px solid #E2E8F0; border-radius: 0.7rem; padding: 0.85rem 1.1rem; background: #FFFFFF; }
+  .rl-card-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #64748B; }
+  .rl-card-num { font-size: 2.1rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; color: #0F172A; }
+  .rl-check { width: 100%; border-collapse: collapse; font-size: 0.93rem; }
+  .rl-check th { text-align: left; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: #64748B; padding: 0.3rem 0.4rem; border-bottom: 1px solid #E2E8F0; }
+  .rl-check td { padding: 0.5rem 0.4rem; border-bottom: 1px solid #F1F5F9; vertical-align: middle; }
+  .rl-check tr:last-child td { border-bottom: none; }
+  .rl-check .rl-status-cell { width: 11rem; white-space: nowrap; }
+  .rl-st { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; font-weight: 600; }
+  .rl-dot { display: inline-block; width: 1.15rem; height: 1.15rem; line-height: 1.15rem; text-align: center; border-radius: 999px; font-size: 0.7rem; }
+  .rl-ok { color: #15803D; }
+  .rl-ok .rl-dot { background: #DCFCE7; }
+  .rl-warn { color: #B45309; }
+  .rl-warn .rl-dot { background: #FEF3C7; }
+  .rl-na { color: #64748B; }
+  .rl-na .rl-dot { background: #F1F5F9; }
+  .rl-card-num.rl-ok { color: #15803D; }
+  .rl-card-num.rl-warn { color: #B45309; }
+  .rl-card-num.rl-na { color: #475569; }
+  @media (max-width: 640px) { .rl-cards { grid-template-columns: 1fr; } }
+
   /* buttons */
   .stButton > button, .stDownloadButton > button { border-radius: 0.55rem; font-weight: 600; padding: 0.5rem 1.1rem; }
 
@@ -79,3 +103,8 @@ def steps(active: int) -> None:
 
 def _escape(value: str) -> str:
     return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def escape_html(value: str) -> str:
+    """Public helper for the few static HTML fragments built from trusted constants."""
+    return _escape(value)

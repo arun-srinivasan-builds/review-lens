@@ -14,9 +14,13 @@ from ui.compliance import (
     ASSESSED_COMMIT,
     ASSESSED_ON,
     ENGINEERING_CHECKS,
+    GROUPS,
+    PRESENTATION,
     SECTIONS,
     STATUS_LABEL,
     all_requirements,
+    grouped_mandatory,
+    mandatory_items,
     status_counts,
 )
 
@@ -140,12 +144,54 @@ def test_demo_shows_compliance_tab_with_date_commit_and_snapshot_label(
     assert not at.exception
     assert [t.label for t in at.tabs] == ["Overview", "Weekly report", "Reviews", "Assignment Compliance"]
     text = _visible_text(at)
+    assert "Assignment Compliance" in text
+    assert "Social Eagle AI Academy | GenAI / LangChain | ReviewLens" in text
     assert ASSESSED_ON in text
     assert ASSESSED_COMMIT in text
     assert "not live monitoring" in text
-    for header in ("Assignment Requirement", "Evidence", "Status"):
-        assert header in text
-    assert "Additional Engineering Validation" in [e.label for e in at.expander]
+    assert "Requirement" in text and "Status" in text
+
+
+def test_main_view_is_grouped_and_shows_three_mandatory_cards(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    at = _demo_app(tmp_path, monkeypatch)
+    text = _visible_text(at)
+    counts = status_counts("mandatory")
+    for group in GROUPS:
+        assert group.replace("&", "&amp;") in text  # labels are HTML-escaped; browsers render '&'
+    assert ">Completed<" in text and ">Pending<" in text and ">Not verified<" in text
+    for value in (counts["Completed"], counts["Pending"], counts["Not Verified"]):
+        assert 'rl-card-num' in text and f">{value}<" in text
+    # the four pending mandatory items stay individually visible in the main checklist
+    for name in (
+        "Sample output match: review R-1042 rated high urgency",
+        "Sample output detail: per-complaint review counts",
+        "README screenshot",
+        "README sample input with its output",
+    ):
+        assert name in text
+    assert text.count("Pending</span>") >= 4
+
+
+def test_details_and_extras_live_in_expanders(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    at = _demo_app(tmp_path, monkeypatch)
+    labels = [e.label for e in at.expander]
+    for expected in (
+        "Verification Details",
+        "Stretch goals (optional in the brief)",
+        "Deployment enhancements (beyond the brief)",
+        "Submission steps",
+        "Additional Engineering Validation",
+    ):
+        assert expected in labels
+    # evidence and commit detail are inside "Verification Details", not in the main checklist
+    details = next(e for e in at.expander if e.label == "Verification Details")
+    detail_text = " ".join(str(getattr(m, "value", "")) for m in details.markdown) + " ".join(
+        t.value.to_string() for t in details.table
+    )
+    assert ASSESSED_COMMIT in detail_text
+    assert "Evidence" in detail_text
 
 
 def test_compliance_tab_exposes_no_secrets_or_infrastructure_details(
@@ -171,3 +217,32 @@ def test_live_mode_has_no_compliance_tab(monkeypatch: pytest.MonkeyPatch) -> Non
     at.run(timeout=60)
     assert not at.exception
     assert [t.label for t in at.tabs] == ["Overview", "Weekly report", "Reviews"]
+
+
+# ---- presentation guarantees: concise names, five groups, statuses untouched
+def test_every_mandatory_requirement_is_mapped_to_one_of_five_groups() -> None:
+    mandatory = {i.ref for i in mandatory_items()}
+    assert set(PRESENTATION) == mandatory  # no item hidden, merged away or invented
+    assert {g for g, _ in PRESENTATION.values()} == set(GROUPS)
+    assert GROUPS == (
+        "CSV Processing",
+        "AI Classification",
+        "Weekly Insights",
+        "Dashboard & Export",
+        "Documentation",
+    )
+    assert sum(len(rows) for rows in grouped_mandatory().values()) == len(mandatory)
+
+
+def test_grouping_does_not_change_any_status() -> None:
+    by_ref = {r.ref: r.status for r in all_requirements()}
+    shown = {item.ref: item.status for rows in grouped_mandatory().values() for _, item in rows}
+    assert shown == {ref: by_ref[ref] for ref in shown}
+    pending = sorted(ref for ref, st in shown.items() if st == "Pending")
+    assert pending == ["1.6-2", "1.6-4", "C-3", "C-4"]  # exactly the four known pending mandatory items
+
+
+def test_concise_names_are_short_and_unique() -> None:
+    names = [short for _, short in PRESENTATION.values()]
+    assert len(names) == len(set(names))
+    assert all(0 < len(n) <= 75 for n in names)
