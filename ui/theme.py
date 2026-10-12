@@ -20,7 +20,8 @@ _CSS = """
   [data-testid="stMetricLabel"] p {
     text-transform: uppercase; letter-spacing: 0.07em; font-size: 0.72rem; font-weight: 600; color: #64748B;
   }
-  [data-testid="stMetricValue"] { font-weight: 650; letter-spacing: -0.02em; }
+  [data-testid="stMetricValue"] { font-weight: 650; letter-spacing: -0.02em; font-size: 1.9rem; }
+  [data-testid="stMetricValue"] div { text-overflow: clip; }
 
   /* tabs */
   [data-baseweb="tab-list"] { gap: 0.4rem; border-bottom: 1px solid #E2E8F0; }

@@ -445,7 +445,7 @@ SECTIONS: tuple[Section, ...] = (
 )
 
 ENGINEERING_CHECKS: tuple[tuple[str, str, str], ...] = (
-    ("Test suite", "Full automated test suite", "201 passed"),
+    ("Test suite", "Full automated test suite", "206 passed"),
     ("Reliability", "Invalid-LLM retry tests", "22 passed"),
     ("Reliability", "Retry limit and failed-review isolation", "Passed"),
     ("Accuracy", "Metrics recomputed independently", "Passed"),

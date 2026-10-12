@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import datetime as dt
+
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
@@ -102,16 +104,23 @@ def _bar_chart(counts: dict[str, int], order: tuple[str, ...], colours: dict[str
     return _style(fig)
 
 
+def format_period(start: dt.date, end: dt.date) -> str:
+    """Compact period label that fits a KPI card: '5-11 Oct 2026', '28 Sep - 5 Oct 2026'."""
+    if start == end:
+        return f"{start.day} {start:%b %Y}"
+    if (start.year, start.month) == (end.year, end.month):
+        return f"{start.day}–{end.day} {end:%b %Y}"
+    if start.year == end.year:
+        return f"{start.day} {start:%b} – {end.day} {end:%b %Y}"
+    return f"{start.day} {start:%b %Y} – {end.day} {end:%b %Y}"
+
+
 def _kpis(metrics: WeeklyMetrics) -> None:
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Reviews analysed", metrics.total_reviews, border=True)
     c2.metric("Needs review", metrics.needs_review_count, border=True)
     c3.metric("High urgency", metrics.high_urgency_count, border=True)
-    c4.metric(
-        "Period",
-        f"{metrics.period_start.strftime('%d %b')} – {metrics.period_end.strftime('%d %b %Y')}",
-        border=True,
-    )
+    c4.metric("Period", format_period(metrics.period_start, metrics.period_end), border=True)
 
 
 def _urgent_panel(enriched_df: pd.DataFrame) -> None:
@@ -154,7 +163,7 @@ def _report_tab(metrics: WeeklyMetrics, report: WeeklyReport | None) -> None:
     with st.container(border=True):
         section_label("Verified figures (calculated, not AI-written)")
         a, b, c, d = st.columns(4)
-        a.metric("Period", f"{metrics.period_start.isoformat()} to {metrics.period_end.isoformat()}")
+        a.metric("Period", format_period(metrics.period_start, metrics.period_end))
         b.metric("Total reviews analysed", metrics.total_reviews)
         c.metric(
             "Sentiment",
