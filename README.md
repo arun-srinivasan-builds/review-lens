@@ -116,7 +116,7 @@ connections blocked:
 
 | Check | Result |
 |---|---|
-| Full automated test suite | **219 passed** |
+| Full automated test suite | **220 passed** |
 | Invalid-LLM retry tests | **22 passed** |
 | Ruff static checks | Passed |
 | Real OpenAI calls during tests | **0** |

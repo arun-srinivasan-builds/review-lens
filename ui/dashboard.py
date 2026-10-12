@@ -198,10 +198,11 @@ def _report_tab(
         c.metric(
             "Sentiment",
             f"{pct.get('positive', 0.0):.1f}% positive",
-            f"{pct.get('negative', 0.0):.1f}% negative",
-            delta_color="inverse",
+            f"{pct.get('negative', 0.0):.1f}% negative · {pct.get('neutral', 0.0):.1f}% neutral",
+            delta_color="off",  # a split, not a trend: no arrow and no red/green
+            delta_arrow="off",
         )
-        d.metric("URGENT", f"{metrics.high_urgency_count} high-urgency review(s)")
+        d.metric("Urgent (high urgency)", metrics.high_urgency_count)
     _breakdown_panel(enriched_df)
     if report is None:
         st.info("The narrative report is unavailable. The verified metrics above are still correct.")
