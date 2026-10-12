@@ -30,6 +30,10 @@ _CSS = """
   [data-testid="stDataFrame"] { border: 1px solid #E2E8F0; border-radius: 0.6rem; overflow: hidden; }
   [data-testid="stFileUploaderDropzone"] { border-radius: 0.75rem; border: 1.5px dashed #A5B4FC; background: #F8FAFF; }
 
+  /* static tables (compliance): readable wrapped text */
+  [data-testid="stTable"] table { font-size: 0.86rem; }
+  [data-testid="stTable"] td, [data-testid="stTable"] th { vertical-align: top; }
+
   /* buttons */
   .stButton > button, .stDownloadButton > button { border-radius: 0.55rem; font-weight: 600; padding: 0.5rem 1.1rem; }
 

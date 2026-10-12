@@ -15,7 +15,7 @@ from reviewlens.models import (
     WeeklyReport,
 )
 from reviewlens.report import format_report_text
-from ui.quality import render_quality_tab
+from ui.compliance import render_compliance_tab
 from ui.theme import section_label
 
 SENTIMENT_COLOURS = {"positive": "#2F9E6F", "neutral": "#94A3B8", "negative": "#DC2626"}
@@ -288,14 +288,14 @@ def render_dashboard(
     enriched_df: pd.DataFrame,
     metrics: WeeklyMetrics,
     report: WeeklyReport | None,
-    show_quality: bool = False,
+    show_compliance: bool = False,
 ) -> None:
     """Render overview, weekly report and the filterable review table with CSV download.
 
-    `show_quality` adds a static "Quality & Validation" tab (used by the public demo only).
+    `show_compliance` adds a static "Assignment Compliance" tab (used by the public demo only).
     """
     st.header("Dashboard")
-    names = ["Overview", "Weekly report", "Reviews"] + (["Quality & Validation"] if show_quality else [])
+    names = ["Overview", "Weekly report", "Reviews"] + (["Assignment Compliance"] if show_compliance else [])
     tabs = st.tabs(names)
     with tabs[0]:
         _overview(enriched_df, metrics)
@@ -303,6 +303,6 @@ def render_dashboard(
         _report_tab(metrics, report)
     with tabs[2]:
         _reviews_tab(enriched_df)
-    if show_quality:
+    if show_compliance:
         with tabs[3]:
-            render_quality_tab()
+            render_compliance_tab()

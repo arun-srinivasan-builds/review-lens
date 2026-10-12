@@ -172,7 +172,7 @@ def _render_demo(settings: Settings) -> None:
         return
     completed = int((enriched_df["processing_status"] == "completed").sum())
     st.success(f"Pre-analysed sample: {completed} reviews.")
-    render_dashboard(enriched_df, calculate_weekly_metrics(enriched_df), report, show_quality=True)
+    render_dashboard(enriched_df, calculate_weekly_metrics(enriched_df), report, show_compliance=True)
 
 
 def main() -> None:
