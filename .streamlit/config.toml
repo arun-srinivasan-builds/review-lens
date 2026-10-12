@@ -6,3 +6,20 @@ gatherUsageStats = false
 
 [client]
 showErrorDetails = "none"
+toolbarMode = "minimal"
+
+[theme]
+base = "light"
+primaryColor = "#4338CA"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F4F6FB"
+textColor = "#0F172A"
+font = "sans serif"
+baseRadius = "0.6rem"
+borderColor = "#E2E8F0"
+
+[theme.sidebar]
+backgroundColor = "#0F172A"
+secondaryBackgroundColor = "#1E293B"
+textColor = "#E2E8F0"
+borderColor = "#1E293B"

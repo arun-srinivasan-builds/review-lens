@@ -27,10 +27,12 @@ from reviewlens.validation import (
     validate_reviews,
 )
 from ui.dashboard import render_dashboard
+from ui.theme import apply_theme, render_header, section_label, steps
 
 logger = get_logger("reviewlens.app")
 
 st.set_page_config(page_title="ReviewLens", page_icon=":mag:", layout="wide")
+apply_theme()
 
 
 def _secrets(settings: Settings | None) -> list[str]:
@@ -60,10 +62,10 @@ def _show_validation(filename: str, result: ValidationResult) -> None:
     st.subheader("Upload summary")
     st.text(f"File: {filename}")
     cols = st.columns(4)
-    cols[0].metric("Input rows", result.input_count)
-    cols[1].metric("Accepted", accepted)
-    cols[2].metric("Rejected", rejected)
-    cols[3].metric("Dropped (empty text)", result.dropped_empty_count)
+    cols[0].metric("Input rows", result.input_count, border=True)
+    cols[1].metric("Accepted", accepted, border=True)
+    cols[2].metric("Rejected", rejected, border=True)
+    cols[3].metric("Dropped (empty text)", result.dropped_empty_count, border=True)
     for message in result.errors:
         st.text(f"Warning: {message}")
     if rejected:
@@ -158,8 +160,7 @@ def _analyse(settings: Settings, valid_reviews: pd.DataFrame) -> None:
 
 def _render_demo(settings: Settings) -> None:
     """Public demo: pre-analysed sample data. No upload, no API key, no LLM calls."""
-    st.title("ReviewLens")
-    st.caption("Public demo: a pre-analysed week of sample reviews. No uploads, no AI calls are made here.")
+    render_header("demo", "Customer feedback intelligence: sentiment, urgent issues and action items in minutes.")
     st.info(
         "This page shows results that were generated once from synthetic sample reviews. "
         "Nothing you do here is sent to OpenAI or stored."
@@ -185,9 +186,9 @@ def main() -> None:
         _render_demo(mode_settings)
         return
 
-    st.title("ReviewLens")
-    st.caption(
-        "Turn a week of customer reviews into sentiment, categories, urgent issues and action items."
+    render_header(
+        "live",
+        "Turn a week of customer reviews into sentiment, categories, urgent issues and action items.",
     )
     st.info(
         "Privacy: review text is sent to the configured LLM provider (OpenAI) for processing. "
@@ -202,14 +203,26 @@ def main() -> None:
         return
     _sidebar(settings)
 
-    uploaded = st.file_uploader(
-        "Upload a reviews CSV", type=["csv"], max_upload_size=settings.max_upload_mb
-    )
-    if uploaded is None:
-        st.write(
-            "Required columns: review_id, date, platform, rating, review_text. "
-            "Upload a CSV to begin."
+    if "enriched_df" in st.session_state:
+        steps(2)
+    elif "validation" in st.session_state:
+        steps(1)
+    else:
+        steps(0)
+
+    with st.container(border=True):
+        section_label("Upload weekly reviews (CSV)")
+        uploaded = st.file_uploader(
+            "Upload a reviews CSV",
+            type=["csv"],
+            max_upload_size=settings.max_upload_mb,
+            label_visibility="collapsed",
         )
+        st.caption(
+            "Required columns: review_id, date, platform, rating, review_text. "
+            f"Up to {settings.max_rows} rows and {settings.max_upload_mb} MB."
+        )
+    if uploaded is None:
         return
 
     upload_id = hashlib.sha256(uploaded.getvalue()).hexdigest()
