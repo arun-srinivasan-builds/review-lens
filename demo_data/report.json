@@ -1,0 +1,18 @@
+{
+  "top_3_complaints": [
+    "Food safety concerns are the most serious: customers describe spoiled or stale food, food poisoning symptoms, and a cockroach in a meal.",
+    "Order accuracy creates safety risks: customers report receiving non-vegetarian food instead of vegetarian orders and a dessert containing an allergen.",
+    "Payment and refund problems frustrate customers: payments were deducted despite failed transactions, and some refunds remain outstanding."
+  ],
+  "top_praises": [
+    "Customers praise tasty, fresh food, especially the biryani.",
+    "Customers appreciate fast, on-time delivery and polite delivery partners.",
+    "Positive feedback also highlights friendly, attentive staff and an easy-to-use app with reliable tracking."
+  ],
+  "urgent_attention": "Urgently investigate food safety reports and strengthen checks to prevent contaminated food and orders containing the wrong meal or allergens from reaching customers.",
+  "action_items": [
+    "Inspect food handling, storage, and preparation practices, and investigate the reported illness and contamination concerns.",
+    "Add a final order check for vegetarian requests and allergy notes before dispatch, confirming the meal and its ingredients match the order.",
+    "Reconcile failed-payment deductions and overdue refunds, then resolve affected customer cases and improve payment and refund follow-up."
+  ]
+}
