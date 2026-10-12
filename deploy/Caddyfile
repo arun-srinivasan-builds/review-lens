@@ -1,0 +1,38 @@
+# HTTPS certificates are obtained and renewed automatically by Caddy.
+# Both hostnames must have DNS A/AAAA records pointing at this VPS.
+
+(security_headers) {
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+}
+
+# Public demo: pre-analysed sample data, no login, no OpenAI calls.
+reviewlens.arunsrinivasan.io {
+	import security_headers
+	encode zstd gzip
+	reverse_proxy demo:8501
+}
+
+# Private live analysis: password required before the app is even served.
+reviewlens-admin.arunsrinivasan.io {
+	import security_headers
+	header X-Robots-Tag "noindex, nofollow"
+	encode zstd gzip
+
+	basic_auth {
+		{$ADMIN_USER} {$ADMIN_PASSWORD_HASH}
+	}
+
+	# Slightly above the app's 10 MB upload limit; the app enforces the exact cap.
+	request_body {
+		max_size 12MB
+	}
+
+	reverse_proxy live:8501
+}

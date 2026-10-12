@@ -1,0 +1,27 @@
+# Secrets and local state never go into the image
+.env
+.env.*
+caddy.env
+.streamlit/secrets.toml
+
+# Not needed at runtime
+.git
+.gitignore
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+tests/
+PRPs/
+scripts/
+sample_data/
+docs/
+agents/
+skills/
+.claude/
+*.md
+requirements-dev.txt

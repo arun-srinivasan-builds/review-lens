@@ -1,0 +1,71 @@
+# ReviewLens on a VPS:
+#   reviewlens.arunsrinivasan.io        public demo, no login, never calls OpenAI
+#   reviewlens-admin.arunsrinivasan.io  live analysis, password (Caddy basic auth)
+#
+# Only Caddy publishes ports. The app containers are reachable only on the internal network.
+
+x-app-hardening: &app-hardening
+  image: reviewlens:latest
+  restart: unless-stopped
+  read_only: true
+  tmpfs:
+    - /tmp
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  networks:
+    - web
+
+services:
+  demo:
+    <<: *app-hardening
+    build: .
+    container_name: reviewlens-demo
+    # Deliberately NO env_file: this container never receives the OpenAI key.
+    environment:
+      REVIEWLENS_MODE: demo
+      REVIEWLENS_DEMO_DIR: /app/demo_data
+
+  live:
+    <<: *app-hardening
+    container_name: reviewlens-live
+    env_file:
+      - .env            # OPENAI_API_KEY, OPENAI_MODEL and limits
+    environment:
+      REVIEWLENS_MODE: live
+    depends_on:
+      - demo            # shares the image built by the demo service
+
+  caddy:
+    image: caddy:2
+    container_name: reviewlens-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    env_file:
+      - caddy.env       # ADMIN_USER, ADMIN_PASSWORD_HASH (never the OpenAI key)
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      - demo
+      - live
+    networks:
+      - web
+
+networks:
+  web:
+
+volumes:
+  caddy_data:
+  caddy_config:

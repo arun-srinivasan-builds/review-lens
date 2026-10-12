@@ -1,0 +1,7 @@
+streamlit==1.65.0
+pandas==3.0.6
+pydantic==2.14.1
+python-dotenv==1.2.4
+langchain-core==1.6.9
+langchain-openai==1.7.0
+plotly==7.1.0
