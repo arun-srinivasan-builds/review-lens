@@ -1,8 +1,10 @@
-# ReviewLens on a VPS:
+# ReviewLens behind an EXISTING Traefik reverse proxy (the one started by the n8n stack).
 #   reviewlens.arunsrinivasan.io        public demo, no login, never calls OpenAI
-#   reviewlens-admin.arunsrinivasan.io  live analysis, password (Caddy basic auth)
+#   reviewlens-admin.arunsrinivasan.io  live analysis, password (Traefik basic auth)
 #
-# Only Caddy publishes ports. The app containers are reachable only on the internal network.
+# No ports are published by these containers; Traefik terminates TLS on 80/443 and routes by hostname.
+# Required in ./.env (live container reads the whole file; compose reads the two ADMIN_* values):
+#   OPENAI_API_KEY, OPENAI_MODEL, ADMIN_USER, ADMIN_PASSWORD_HASH='$2a$...'   (bcrypt hash in single quotes)
 
 x-app-hardening: &app-hardening
   image: reviewlens:latest
@@ -15,7 +17,7 @@ x-app-hardening: &app-hardening
   security_opt:
     - no-new-privileges:true
   networks:
-    - web
+    - n8n_default
 
 services:
   demo:
@@ -26,6 +28,20 @@ services:
     environment:
       REVIEWLENS_MODE: demo
       REVIEWLENS_DEMO_DIR: /app/demo_data
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: n8n_default
+      traefik.http.routers.reviewlens-demo.rule: Host(`reviewlens.arunsrinivasan.io`)
+      traefik.http.routers.reviewlens-demo.entrypoints: websecure
+      traefik.http.routers.reviewlens-demo.tls: "true"
+      traefik.http.routers.reviewlens-demo.tls.certresolver: mytlschallenge
+      traefik.http.routers.reviewlens-demo.middlewares: reviewlens-headers@docker
+      traefik.http.services.reviewlens-demo.loadbalancer.server.port: "8501"
+      # shared security headers
+      traefik.http.middlewares.reviewlens-headers.headers.frameDeny: "true"
+      traefik.http.middlewares.reviewlens-headers.headers.contentTypeNosniff: "true"
+      traefik.http.middlewares.reviewlens-headers.headers.referrerPolicy: no-referrer
+      traefik.http.middlewares.reviewlens-headers.headers.stsSeconds: "31536000"
 
   live:
     <<: *app-hardening
@@ -36,36 +52,21 @@ services:
       REVIEWLENS_MODE: live
     depends_on:
       - demo            # shares the image built by the demo service
-
-  caddy:
-    image: caddy:2
-    container_name: reviewlens-caddy
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
-    env_file:
-      - caddy.env       # ADMIN_USER, ADMIN_PASSWORD_HASH (never the OpenAI key)
-    volumes:
-      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    cap_drop:
-      - ALL
-    cap_add:
-      - NET_BIND_SERVICE
-    security_opt:
-      - no-new-privileges:true
-    depends_on:
-      - demo
-      - live
-    networks:
-      - web
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: n8n_default
+      traefik.http.routers.reviewlens-live.rule: Host(`reviewlens-admin.arunsrinivasan.io`)
+      traefik.http.routers.reviewlens-live.entrypoints: websecure
+      traefik.http.routers.reviewlens-live.tls: "true"
+      traefik.http.routers.reviewlens-live.tls.certresolver: mytlschallenge
+      # password first, then request-size cap, then headers
+      traefik.http.routers.reviewlens-live.middlewares: reviewlens-auth@docker,reviewlens-limit@docker,reviewlens-headers@docker
+      traefik.http.services.reviewlens-live.loadbalancer.server.port: "8501"
+      traefik.http.middlewares.reviewlens-auth.basicauth.users: ${ADMIN_USER}:${ADMIN_PASSWORD_HASH}
+      traefik.http.middlewares.reviewlens-auth.basicauth.removeheader: "true"
+      # slightly above the app's 10 MB upload limit; the app enforces the exact cap
+      traefik.http.middlewares.reviewlens-limit.buffering.maxRequestBodyBytes: "12582912"
 
 networks:
-  web:
-
-volumes:
-  caddy_data:
-  caddy_config:
+  n8n_default:
+    external: true

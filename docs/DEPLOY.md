@@ -1,79 +1,70 @@
-# Deploying ReviewLens to a VPS
+# Deploying ReviewLens to a VPS (behind an existing Traefik)
 
-Two sites, one image, one Caddy proxy:
+Two sites, one image, routed by the Traefik reverse proxy already running on the VPS (the n8n stack's
+`n8n-traefik-1`: entrypoint `websecure`, certificate resolver `mytlschallenge`, network `n8n_default`):
 
 | Hostname | Mode | Access | OpenAI |
 |----------|------|--------|--------|
 | `reviewlens.arunsrinivasan.io` | `demo` | public, no login | never called; container has no key |
-| `reviewlens-admin.arunsrinivasan.io` | `live` | password (Caddy basic auth) | real analysis |
+| `reviewlens-admin.arunsrinivasan.io` | `live` | password (Traefik basic auth) | real analysis |
 
-Only Caddy publishes ports (80/443). The app containers run read-only, as a non-root user, with all
-capabilities dropped, and are reachable only on the internal Docker network.
-
-## 0. One-time, on your own machine
-
-1. Build the demo bundle once (about 207 OpenAI calls; needs `.env` with key and model):
-
-   ```bash
-   .venv\Scripts\python -m scripts.build_demo
-   ```
-
-   This writes `demo_data/enriched.csv` and `demo_data/report.json`. Open the app locally with
-   `REVIEWLENS_MODE=demo` to check it looks right, then commit `demo_data/`. It contains only the synthetic
-   sample reviews, no secrets.
-2. Make sure the demo bundle is committed and the repo is pushed or archived (see step 3).
+The app containers publish no ports. They run read-only, as a non-root user, with all capabilities
+dropped, and are reached only through Traefik. Traefik and n8n are not modified.
 
 ## 1. DNS
 
-Create `A` (and `AAAA` if the VPS has IPv6) records for **both** hostnames pointing at the VPS IP. Caddy
-cannot obtain certificates until DNS resolves.
+`A` records for both hostnames pointing at the VPS IP (done once).
 
-## 2. VPS prerequisites
-
-- Ubuntu/Debian with Docker Engine and the Compose plugin ([official install guide](https://docs.docker.com/engine/install/)).
-- Firewall: allow 22, 80, 443 (and 443/udp for HTTP/3); nothing else.
-
-  ```bash
-  sudo ufw allow OpenSSH && sudo ufw allow 80,443/tcp && sudo ufw allow 443/udp && sudo ufw enable
-  ```
-
-## 3. Get the code onto the VPS
+## 2. Get the code
 
 ```bash
 git clone https://github.com/arun-srinivasan-builds/review-lens.git
 cd review-lens
 ```
 
-## 4. Secrets (on the VPS only, never committed)
+## 3. Secrets (on the VPS only, never committed)
 
 ```bash
 cp .env.example .env
-nano .env            # set OPENAI_API_KEY and OPENAI_MODEL
+nano .env     # set OPENAI_API_KEY and OPENAI_MODEL; leave OPENAI_TEMPERATURE empty
 chmod 600 .env
-
-cp caddy.env.example caddy.env
-docker run --rm caddy:2 caddy hash-password --plaintext 'a-long-random-password'
-nano caddy.env       # set ADMIN_USER and paste the hash inside single quotes
-chmod 600 caddy.env
 ```
 
-Use a long random password (20+ characters): Caddy basic auth has no built-in lockout.
+Generate the admin password hash (it prompts for the password, so it stays out of shell history):
 
-## 5. Launch
+```bash
+docker run --rm -it caddy:2 caddy hash-password
+```
+
+Add these two lines at the end of `.env`, pasting the hash between single quotes:
+
+```env
+ADMIN_USER=admin
+ADMIN_PASSWORD_HASH='$2a$14$...the-hash-you-copied...'
+```
+
+The hash must be in single quotes because it contains `$` characters. Use a long random password.
+
+## 4. Launch
 
 ```bash
 docker compose build
 docker compose up -d
-docker compose ps          # demo, live, caddy should be running/healthy
-docker compose logs -f caddy   # watch certificates being issued
+docker compose ps
 ```
 
-## 6. Verify
+`demo` and `live` should be `Up (healthy)`. Traefik discovers them from their labels and requests the
+certificates on the first visit to each hostname (a few seconds).
 
-- `https://reviewlens.arunsrinivasan.io` shows the dashboard with no upload box and no "Analyse" button.
-- `https://reviewlens-admin.arunsrinivasan.io` asks for the password, then shows the upload page.
-- The demo container has no key: `docker compose exec demo env | grep -c OPENAI` prints `0`.
-- Upload `sample_data/sample_reviews.csv` on the admin site and analyse it.
+## 5. Verify
+
+```bash
+curl -sI https://reviewlens.arunsrinivasan.io | head -1          # 200
+curl -sI https://reviewlens-admin.arunsrinivasan.io | head -1    # 401 (password required)
+docker compose exec demo env | grep -c OPENAI                    # 0
+```
+
+Then open the admin site, sign in, upload `sample_data/sample_reviews.csv` and click **Analyse reviews**.
 
 ## Operations
 
@@ -82,8 +73,16 @@ docker compose logs -f caddy   # watch certificates being issued
 | Update | `git pull && docker compose build && docker compose up -d` |
 | Logs | `docker compose logs -f live` |
 | Rotate OpenAI key | edit `.env`, then `docker compose up -d live` |
-| Change admin password | new hash into `caddy.env`, then `docker compose up -d caddy` |
-| Stop everything | `docker compose down` |
+| Change admin password | new hash into `.env`, then `docker compose up -d` |
+| Stop ReviewLens only | `docker compose down` (does not affect Traefik or n8n) |
+
+## Rebuilding the demo bundle (on your own machine)
+
+```bash
+python -m scripts.build_demo     # about 207 OpenAI calls
+```
+
+Commit the regenerated `demo_data/` and redeploy. It contains only the synthetic sample reviews.
 
 ## Safety notes
 
