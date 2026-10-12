@@ -30,11 +30,16 @@ nano .env     # set OPENAI_API_KEY and OPENAI_MODEL; leave OPENAI_TEMPERATURE em
 chmod 600 .env
 ```
 
-Generate the admin password hash (it prompts for the password, so it stays out of shell history):
+Password protection is done by **Traefik's basic-auth middleware** (configured in `docker-compose.yml`),
+which accepts bcrypt hashes in htpasswd format. Generate one with Apache's `htpasswd` from the official
+`httpd` image. It prompts for the password, so it stays out of shell history:
 
 ```bash
-docker run --rm -it caddy:2 caddy hash-password
+docker run --rm -it httpd:2 htpasswd -nBC 12 admin
 ```
+
+It prints `admin:$2y$12$...`. Use only the part after `admin:` as the hash. Any bcrypt hash (`$2a$`, `$2b$` or
+`$2y$`) works, including one created earlier with another tool.
 
 Add these two lines at the end of `.env`, pasting the hash between single quotes:
 

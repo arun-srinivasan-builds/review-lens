@@ -19,7 +19,7 @@ and has a second LangChain chain write a short, evidence-grounded management rep
 | **Source code** | https://github.com/arun-srinivasan-builds/review-lens |
 
 The public demo shows a pre-analysed week of 206 synthetic reviews: dashboard, charts, top complaints, top
-praise, action items, a filterable review table and a recorded **Quality & Validation** snapshot. Nothing you
+praise, action items, a filterable review table and a recorded **Assignment Compliance** snapshot. Nothing you
 do there is sent to OpenAI. The private site needs a password because it accepts uploads and calls OpenAI.
 
 ![ReviewLens public demo: Overview tab with KPI cards, sentiment, category and urgency charts, and the urgent-reviews panel](docs/screenshot.png)
@@ -116,7 +116,7 @@ connections blocked:
 
 | Check | Result |
 |---|---|
-| Full automated test suite | **220 passed** |
+| Full automated test suite | **223 passed** |
 | Invalid-LLM retry tests | **22 passed** |
 | Ruff static checks | Passed |
 | Real OpenAI calls during tests | **0** |
@@ -285,7 +285,7 @@ Full runbook: [`docs/DEPLOY.md`](docs/DEPLOY.md). Regenerate the demo bundle wit
 ```
 app.py                  Streamlit entrypoint (live and demo modes)
 reviewlens/             validation, classification, aggregation, report, export, demo, llm, config, security
-ui/                     dashboard, theme, quality tab
+ui/                     dashboard, theme, assignment-compliance tab
 scripts/build_demo.py   builds the pre-analysed demo bundle
 demo_data/              pre-analysed bundle served by the public demo
 sample_data/            sample and 200+ row test CSVs
